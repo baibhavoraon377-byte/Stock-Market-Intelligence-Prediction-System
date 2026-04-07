@@ -1,0 +1,55 @@
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Environment / secrets ─────────────────────────────────
+.env
+*.env
+!.env.example          # keep the example template
+
+# ── Streamlit ─────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Data & caches ─────────────────────────────────────────
+*.db
+*.sqlite3
+*.sqlite
+__pycache__/
+.cache/
+*.pkl
+*.pickle
+
+# ── Portfolio data (local only) ───────────────────────────
+# Comment this out if you want to version-control your portfolio
+data/portfolio_data.json
+
+# ── IDE / editor ──────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Jupyter ───────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
