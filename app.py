@@ -1,0 +1,481 @@
+"""
+StockFin — Live Market Dashboard
+Entry point for the Streamlit multi-page app.
+Run with:  streamlit run app.py
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import yfinance as yf
+from datetime import datetime
+import time
+
+# ── Page config — ONLY here, never inside pages/ ──────────────────────────────
+st.set_page_config(
+    page_title="StockFin — Live Dashboard",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── Shared CSS (sidebar toggle fix lives here) ─────────────────────────────────
+from utils.styling import apply_css, DARK_LAYOUT
+apply_css()
+
+# ── Data helpers ──────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=60)
+def get_live_stock_data(symbol: str) -> dict | None:
+    """Fetch live price + 1-month history for a single symbol."""
+    try:
+        stock = yf.Ticker(symbol)
+        intra = stock.history(period="1d", interval="1m")
+        current_price = (
+            float(intra["Close"].iloc[-1])
+            if not intra.empty
+            else stock.info.get("regularMarketPrice",
+                                stock.info.get("currentPrice", 0))
+        )
+        hist = stock.history(period="1mo")
+        if hist.empty:
+            return None
+        open_ = float(hist["Open"].iloc[-1])
+        return {
+            "symbol":         symbol,
+            "price":          current_price,
+            "open":           open_,
+            "high":           float(hist["High"].iloc[-1]),
+            "low":            float(hist["Low"].iloc[-1]),
+            "volume":         float(hist["Volume"].iloc[-1]),
+            "change":         current_price - open_,
+            "change_percent": ((current_price - open_) / open_ * 100) if open_ else 0.0,
+            "history":        hist,
+            "info":           stock.info,
+        }
+    except Exception as exc:
+        st.warning(f"⚠️ Could not fetch {symbol}: {exc}")
+        return None
+
+
+@st.cache_data(ttl=300)
+def get_multiple_stocks(symbols: tuple) -> dict:
+    """Fetch multiple stocks. Accepts a tuple so it is hashable for caching."""
+    result = {}
+    for sym in symbols:
+        data = get_live_stock_data(sym)
+        if data:
+            result[sym] = data
+        time.sleep(0.35)
+    return result
+
+
+def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Add MA20, MA50, RSI, Bollinger Bands and MACD to a price DataFrame."""
+    df = df.copy()
+    df["MA20"] = df["Close"].rolling(20).mean()
+    df["MA50"] = df["Close"].rolling(50).mean()
+
+    delta = df["Close"].diff()
+    gain  = delta.where(delta > 0, 0.0).rolling(14).mean()
+    loss_ = (-delta.where(delta < 0, 0.0)).rolling(14).mean()
+    rs    = gain / loss_.replace(0, np.nan)
+    df["RSI"] = (100 - (100 / (1 + rs))).fillna(50)
+
+    df["BB_Middle"] = df["Close"].rolling(20).mean()
+    bb_std          = df["Close"].rolling(20).std()
+    df["BB_Upper"]  = df["BB_Middle"] + bb_std * 2
+    df["BB_Lower"]  = df["BB_Middle"] - bb_std * 2
+
+    exp1        = df["Close"].ewm(span=12, adjust=False).mean()
+    exp2        = df["Close"].ewm(span=26, adjust=False).mean()
+    df["MACD"]  = exp1 - exp2
+    df["Signal"]= df["MACD"].ewm(span=9, adjust=False).mean()
+    return df
+
+
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+    <div style="padding:1.2rem .4rem .6rem">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.2rem">
+            <div style="width:34px;height:34px;background:linear-gradient(135deg,#4f8fff,#7c6ff7);
+                border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem">📈</div>
+            <div>
+                <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;
+                    color:#f0f2f8!important">StockFin</div>
+                <span class="live-dot" style="font-size:.65rem">LIVE</span>
+            </div>
+        </div>
+        <div class="nav-group">Pages</div>
+        <div class="nav-item active">⬛ Dashboard</div>
+        <div class="nav-item">📊 Analytics</div>
+        <div class="nav-item">💼 Portfolio</div>
+        <div class="nav-item">🛡️ Compliance</div>
+    </div>
+    <hr style="border-color:rgba(255,255,255,.06);margin:.4rem 0 .8rem">
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div style="font-size:.7rem;font-weight:600;letter-spacing:.1em;'
+                'text-transform:uppercase;color:#4e5669;padding:.3rem .4rem .4rem">Select Stocks</div>',
+                unsafe_allow_html=True)
+
+    default_stocks = {
+        "Apple (AAPL)":     "AAPL",
+        "Tesla (TSLA)":     "TSLA",
+        "Microsoft (MSFT)": "MSFT",
+        "Google (GOOGL)":   "GOOGL",
+        "NVIDIA (NVDA)":    "NVDA",
+        "Meta (META)":      "META",
+        "Amazon (AMZN)":    "AMZN",
+        "Netflix (NFLX)":   "NFLX",
+    }
+    selected_stocks = [
+        sym for name, sym in default_stocks.items()
+        if st.checkbox(name, value=(sym in ["AAPL", "TSLA", "MSFT"]))
+    ]
+
+    st.markdown('<hr style="border-color:rgba(255,255,255,.06);margin:.8rem 0">', unsafe_allow_html=True)
+
+    custom_symbol = st.text_input("➕ Add Custom Symbol", placeholder="e.g. INFY.NS, BTC-USD")
+    if custom_symbol and st.button("Add", use_container_width=True):
+        sym_up = custom_symbol.upper().strip()
+        if sym_up not in selected_stocks:
+            selected_stocks.append(sym_up)
+            st.rerun()
+
+    chart_period = st.selectbox("Chart Period", ["1mo", "3mo", "6mo", "1y", "2y"], index=0)
+    total_invested = st.number_input("Initial Investment ($)", value=10_000, step=1_000, min_value=0)
+
+    st.markdown('<hr style="border-color:rgba(255,255,255,.06);margin:.8rem 0">', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.72rem;color:#4e5669;padding:.2rem .4rem">'
+                'Data · Yahoo Finance · Refreshes every ~60s</div>', unsafe_allow_html=True)
+
+# ── Header ─────────────────────────────────────────────────────────────────────
+hc1, hc2, hc3 = st.columns([3, 1.4, 0.8])
+with hc1:
+    st.markdown("""
+    <div style="padding:.8rem 0 .2rem">
+        <div style="font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;
+            color:#f0f2f8;line-height:1">Live Market Dashboard</div>
+        <div style="font-size:.82rem;color:#8892a4;margin-top:.3rem">
+            Real-time stock data &amp; analytics</div>
+    </div>
+    """, unsafe_allow_html=True)
+with hc2:
+    now = datetime.now().strftime("%b %d, %Y  %H:%M")
+    st.markdown(f"""
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;
+        padding:.55rem 1rem;text-align:center;margin-top:.8rem">
+        <div style="font-size:.65rem;color:#4e5669;text-transform:uppercase;letter-spacing:.07em">Last Update</div>
+        <div style="font-size:.82rem;font-weight:600;color:#f0f2f8">{now}</div>
+    </div>
+    """, unsafe_allow_html=True)
+with hc3:
+    st.markdown("<div style='margin-top:.8rem'>", unsafe_allow_html=True)
+    if st.button("↺ Refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("<div style='height:.6rem'></div>", unsafe_allow_html=True)
+
+# ── Guard: no stocks selected ──────────────────────────────────────────────────
+if not selected_stocks:
+    st.markdown("""
+    <div class="fin-card" style="text-align:center;padding:3rem">
+        <div style="font-size:2.5rem;margin-bottom:1rem">📈</div>
+        <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:#f0f2f8">
+            Select stocks from the sidebar to get started</div>
+        <div style="font-size:.82rem;color:#8892a4;margin-top:.4rem">
+            Use the checkboxes on the left to choose which stocks to track</div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# ── Fetch data ─────────────────────────────────────────────────────────────────
+with st.spinner("Fetching live market data…"):
+    stocks_data = get_multiple_stocks(tuple(selected_stocks))
+
+if not stocks_data:
+    st.error("No stock data could be fetched. Check your internet connection and try again.")
+    st.stop()
+
+# ── Market Overview ticker grid ────────────────────────────────────────────────
+st.markdown('<div style="font-family:\'Syne\',sans-serif;font-size:.82rem;font-weight:600;'
+            'letter-spacing:.08em;text-transform:uppercase;color:#4e5669;margin-bottom:.6rem">'
+            'Market Overview</div>', unsafe_allow_html=True)
+
+n_cols = min(4, len(stocks_data))
+cols   = st.columns(n_cols)
+for idx, (sym, data) in enumerate(list(stocks_data.items())[:8]):
+    with cols[idx % n_cols]:
+        up = data["change"] >= 0
+        st.markdown(f"""
+        <div class="ticker-card">
+            <div class="ticker-sym">{sym}</div>
+            <div class="ticker-price">${data['price']:.2f}</div>
+            <div class="ticker-chg {'up' if up else 'down'}">
+                {'▲' if up else '▼'} {abs(data['change_percent']):.2f}%
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
+# ── Detailed Analysis ─────────────────────────────────────────────────────────
+st.markdown('<div style="font-family:\'Syne\',sans-serif;font-size:.82rem;font-weight:600;'
+            'letter-spacing:.08em;text-transform:uppercase;color:#4e5669;margin-bottom:.6rem">'
+            'Detailed Analysis</div>', unsafe_allow_html=True)
+
+selected_symbol = st.selectbox("", list(stocks_data.keys()), label_visibility="collapsed")
+
+if selected_symbol and selected_symbol in stocks_data:
+    data = stocks_data[selected_symbol]
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Price Chart", "📊 Indicators", "ℹ️ Company Info", "🔔 Alerts"])
+
+    # ── Price Chart ────────────────────────────────────────────────────────────
+    with tab1:
+        hist = calculate_indicators(data["history"])
+
+        fig = make_subplots(
+            rows=3, cols=1, shared_xaxes=True,
+            vertical_spacing=0.04, row_heights=[0.6, 0.2, 0.2],
+            subplot_titles=("Price & Bands", "Volume", "RSI (14)"),
+        )
+        fig.add_trace(go.Candlestick(
+            x=hist.index, open=hist["Open"], high=hist["High"],
+            low=hist["Low"], close=hist["Close"],
+            increasing_line_color="#22d98a", decreasing_line_color="#f05252",
+            name="Price",
+        ), row=1, col=1)
+        for col_name, label, color, dash in [
+            ("MA20",     "MA20", "#f5a623",              "solid"),
+            ("MA50",     "MA50", "#7c6ff7",              "solid"),
+            ("BB_Upper", "BB+",  "rgba(255,255,255,.25)","dot"),
+            ("BB_Lower", "BB−",  "rgba(255,255,255,.25)","dot"),
+        ]:
+            fig.add_trace(go.Scatter(
+                x=hist.index, y=hist[col_name], name=label,
+                line=dict(color=color, width=1, dash=dash),
+            ), row=1, col=1)
+
+        bar_colors = [
+            "#22d98a" if hist["Close"].iloc[i] >= hist["Open"].iloc[i] else "#f05252"
+            for i in range(len(hist))
+        ]
+        fig.add_trace(go.Bar(x=hist.index, y=hist["Volume"], name="Volume",
+                             marker_color=bar_colors, opacity=0.7), row=2, col=1)
+        fig.add_trace(go.Scatter(x=hist.index, y=hist["RSI"], name="RSI",
+                                 line=dict(color="#4f8fff", width=1.5)), row=3, col=1)
+        fig.add_hline(y=70, line_dash="dot", line_color="#f05252", opacity=0.5, row=3, col=1)
+        fig.add_hline(y=30, line_dash="dot", line_color="#22d98a", opacity=0.5, row=3, col=1)
+        fig.update_layout(
+            height=640, showlegend=True, xaxis_rangeslider_visible=False,
+            title=f"{selected_symbol} — Technical Chart",
+            title_font=dict(family="Syne", size=14, color="#f0f2f8"), **DARK_LAYOUT,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── Indicators ─────────────────────────────────────────────────────────────
+    with tab2:
+        hist = calculate_indicators(data["history"])
+        rsi_val    = float(hist["RSI"].iloc[-1])
+        rsi_status = "Overbought 🔴" if rsi_val > 70 else "Oversold 🟢" if rsi_val < 30 else "Neutral 🟡"
+        rsi_color  = "#f05252" if rsi_val > 70 else "#22d98a" if rsi_val < 30 else "#f5a623"
+        macd_bull  = float(hist["MACD"].iloc[-1]) > float(hist["Signal"].iloc[-1])
+
+        ic1, ic2 = st.columns(2)
+        with ic1:
+            st.markdown(f"""
+            <div class="glass-card">
+                <h4>Key Statistics</h4>
+                <table style="width:100%">
+                    <tr><td>Current Price</td><td><strong>${data['price']:.2f}</strong></td></tr>
+                    <tr><td>Day Open</td><td>${data['open']:.2f}</td></tr>
+                    <tr><td>Day High</td><td>${data['high']:.2f}</td></tr>
+                    <tr><td>Day Low</td><td>${data['low']:.2f}</td></tr>
+                    <tr><td>Volume</td><td>{data['volume']:,.0f}</td></tr>
+                    <tr><td>Daily Change</td>
+                        <td style="color:{'#22d98a' if data['change']>=0 else '#f05252'}">
+                            {'+' if data['change']>=0 else ''}{data['change']:.2f} ({data['change_percent']:+.2f}%)
+                        </td></tr>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
+        with ic2:
+            ma20 = float(hist["MA20"].iloc[-1])
+            ma50 = float(hist["MA50"].iloc[-1])
+            price_vs_ma = "Above both MAs ✅" if data['price'] > ma20 > ma50 else \
+                          "Below both MAs ⚠️" if data['price'] < ma20 < ma50 else "Mixed"
+            st.markdown(f"""
+            <div class="glass-card">
+                <h4>Technical Signals</h4>
+                <table style="width:100%">
+                    <tr><td>RSI (14)</td>
+                        <td><strong style="color:{rsi_color}">{rsi_val:.1f} — {rsi_status}</strong></td></tr>
+                    <tr><td>MACD</td>
+                        <td><strong style="color:{'#22d98a' if macd_bull else '#f05252'}">
+                            {'Bullish ▲' if macd_bull else 'Bearish ▼'}</strong></td></tr>
+                    <tr><td>MA 20</td><td>${ma20:.2f}</td></tr>
+                    <tr><td>MA 50</td><td>${ma50:.2f}</td></tr>
+                    <tr><td>Price vs MAs</td><td>{price_vs_ma}</td></tr>
+                    <tr><td>BB Upper / Lower</td>
+                        <td>${hist['BB_Upper'].iloc[-1]:.2f} / ${hist['BB_Lower'].iloc[-1]:.2f}</td></tr>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # MA chart
+        fig2 = go.Figure()
+        for col_name, label, color in [
+            ("Close", "Close Price", "#4f8fff"),
+            ("MA20",  "MA 20",       "#f5a623"),
+            ("MA50",  "MA 50",       "#7c6ff7"),
+        ]:
+            fig2.add_trace(go.Scatter(
+                x=hist.index, y=hist[col_name], name=label,
+                line=dict(color=color, width=1.8 if col_name == "Close" else 1.2),
+            ))
+        fig2.update_layout(height=300, title="Price vs Moving Averages",
+                           title_font=dict(family="Syne", size=13, color="#f0f2f8"), **DARK_LAYOUT)
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # ── Company Info ───────────────────────────────────────────────────────────
+    with tab3:
+        info   = data["info"]
+        mktcap = info.get("marketCap", 0)
+        mktcap_str = (f"${mktcap/1e12:.2f}T" if mktcap >= 1e12 else
+                      f"${mktcap/1e9:.1f}B"  if mktcap >= 1e9 else
+                      f"${mktcap:,.0f}")
+        ci1, ci2 = st.columns(2)
+        with ci1:
+            st.markdown(f"""
+            <div class="glass-card">
+                <h4>Company Profile</h4>
+                <table style="width:100%">
+                    <tr><td>Name</td><td>{info.get('longName','N/A')}</td></tr>
+                    <tr><td>Sector</td><td>{info.get('sector','N/A')}</td></tr>
+                    <tr><td>Industry</td><td>{info.get('industry','N/A')}</td></tr>
+                    <tr><td>Country</td><td>{info.get('country','N/A')}</td></tr>
+                    <tr><td>Website</td>
+                        <td><a href="{info.get('website','#')}" target="_blank"
+                            style="color:#4f8fff">{info.get('website','N/A')}</a></td></tr>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
+        with ci2:
+            div_yield = (info.get('dividendYield') or 0) * 100
+            st.markdown(f"""
+            <div class="glass-card">
+                <h4>Financial Metrics</h4>
+                <table style="width:100%">
+                    <tr><td>Market Cap</td><td>{mktcap_str}</td></tr>
+                    <tr><td>P/E Ratio</td><td>{info.get('trailingPE','N/A')}</td></tr>
+                    <tr><td>EPS</td><td>{info.get('trailingEps','N/A')}</td></tr>
+                    <tr><td>52W High</td><td>${info.get('fiftyTwoWeekHigh',0):.2f}</td></tr>
+                    <tr><td>52W Low</td><td>${info.get('fiftyTwoWeekLow',0):.2f}</td></tr>
+                    <tr><td>Dividend Yield</td><td>{div_yield:.2f}%</td></tr>
+                    <tr><td>Beta</td><td>{info.get('beta','N/A')}</td></tr>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Quick insight
+        pe  = info.get('trailingPE', None)
+        beta = info.get('beta', None)
+        insights = []
+        if pe:
+            insights.append(f"P/E of {pe:.1f} — {'elevated valuation' if pe > 30 else 'reasonable valuation'}.")
+        if beta:
+            insights.append(f"Beta {beta:.2f} — {'high volatility vs market' if beta > 1.3 else 'lower volatility than market' if beta < 0.8 else 'moves close to market'}.")
+        if insights:
+            st.markdown(f'<div class="insight-text" style="margin-top:.6rem">'
+                        f'<strong style="color:#f0f2f8">Quick Insight</strong><br>'
+                        f'{" ".join(insights)}</div>', unsafe_allow_html=True)
+
+    # ── Alerts ─────────────────────────────────────────────────────────────────
+    with tab4:
+        hist       = calculate_indicators(data["history"])
+        latest_rsi = float(hist["RSI"].iloc[-1])
+        avg_vol    = float(hist["Volume"].rolling(20).mean().iloc[-1])
+        alerts: list[tuple[str, str, str]] = []
+
+        if data["change_percent"] > 3:
+            alerts.append(("⚡", f"<strong>{selected_symbol}</strong> surged <strong>+{data['change_percent']:.2f}%</strong> today", "#f5a623"))
+        elif data["change_percent"] < -3:
+            alerts.append(("⚡", f"<strong>{selected_symbol}</strong> dropped <strong>{data['change_percent']:.2f}%</strong> today", "#f05252"))
+        if latest_rsi > 70:
+            alerts.append(("📊", f"RSI is overbought at <strong>{latest_rsi:.1f}</strong> — potential pullback zone", "#f05252"))
+        elif latest_rsi < 30:
+            alerts.append(("📊", f"RSI is oversold at <strong>{latest_rsi:.1f}</strong> — potential bounce zone", "#22d98a"))
+        if avg_vol and data["volume"] > avg_vol * 1.5:
+            alerts.append(("📢", f"Volume spike: <strong>{data['volume']:,.0f}</strong> vs avg {avg_vol:,.0f} — unusual activity", "#4f8fff"))
+
+        # BB squeeze alert
+        bb_width = (float(hist["BB_Upper"].iloc[-1]) - float(hist["BB_Lower"].iloc[-1])) / float(hist["BB_Middle"].iloc[-1])
+        if bb_width < 0.05:
+            alerts.append(("🎯", "Bollinger Bands are squeezing — a breakout move may be near", "#7c6ff7"))
+
+        if alerts:
+            st.markdown(f'<div style="font-size:.72rem;font-weight:600;letter-spacing:.08em;'
+                        f'text-transform:uppercase;color:#4e5669;margin-bottom:.5rem">'
+                        f'{len(alerts)} Active Alert{"s" if len(alerts) > 1 else ""}</div>',
+                        unsafe_allow_html=True)
+            for icon, msg, color in alerts:
+                st.markdown(f"""
+                <div style="background:var(--bg-elevated);border:1px solid {color}33;
+                    border-left:3px solid {color};border-radius:0 8px 8px 0;
+                    padding:.8rem 1rem;font-size:.83rem;color:#8892a4;margin-bottom:.5rem">
+                    {icon} {msg}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background:rgba(34,217,138,.07);border:1px solid rgba(34,217,138,.2);
+                border-radius:14px;padding:1rem;font-size:.83rem;color:#22d98a">
+                ✅ No significant alerts at this time — price action looks stable
+            </div>
+            """, unsafe_allow_html=True)
+
+# ── Portfolio Summary Strip ────────────────────────────────────────────────────
+st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
+st.markdown('<hr style="border-color:rgba(255,255,255,.06)">', unsafe_allow_html=True)
+st.markdown('<div style="font-family:\'Syne\',sans-serif;font-size:.82rem;font-weight:600;'
+            'letter-spacing:.08em;text-transform:uppercase;color:#4e5669;margin-bottom:.7rem">'
+            'Session Summary</div>', unsafe_allow_html=True)
+
+# Simple portfolio estimate based on equal allocation
+gainers = sum(1 for d in stocks_data.values() if d and d["change"] >= 0)
+losers  = len(stocks_data) - gainers
+avg_chg = (sum(d["change_percent"] for d in stocks_data.values() if d) /
+           max(len(stocks_data), 1))
+est_return = total_invested * (1 + avg_chg / 100)
+
+ps1, ps2, ps3, ps4 = st.columns(4)
+for col, title, value, icon in [
+    (ps1, "Est. Portfolio Value", f"${est_return:,.2f}",           "💰"),
+    (ps2, "Avg. Daily Change",    f"{avg_chg:+.2f}%",              "📈"),
+    (ps3, "Gainers / Losers",     f"{gainers}↑  {losers}↓",        "🎯"),
+    (ps4, "Stocks Tracked",       str(len(stocks_data)),            "📋"),
+]:
+    with col:
+        color = "#22d98a" if "+" in value or "↑" in value else "#f05252" if value.startswith("-") else "#f0f2f8"
+        st.markdown(f"""
+        <div class="stat-card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div class="stat-label">{title}</div>
+                <span style="font-size:1.1rem;opacity:.6">{icon}</span>
+            </div>
+            <div class="stat-value" style="color:{color};font-size:1.5rem">{value}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ── Footer ─────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="text-align:center;padding:1.5rem 0 .5rem;font-size:.75rem;color:#4e5669">
+    Data provided by Yahoo Finance &nbsp;·&nbsp; For educational purposes only &nbsp;·&nbsp; Not financial advice
+</div>
+""", unsafe_allow_html=True)
