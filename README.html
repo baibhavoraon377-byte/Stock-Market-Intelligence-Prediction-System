@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockFin — README</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b0d12;
+    --bg-card:  #11141c;
+    --bg-raised:#181d2a;
+    --bg-glow:  #1a2035;
+    --border:   rgba(255,255,255,0.07);
+    --border-hi:rgba(255,255,255,0.13);
+    --blue:     #4f8fff;
+    --violet:   #7c6ff7;
+    --green:    #22d98a;
+    --red:      #f05252;
+    --amber:    #f5a623;
+    --cyan:     #38d9f5;
+    --text:     #eef0f8;
+    --muted:    #8892a4;
+    --dim:      #4a5568;
+    --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:28px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated grain overlay ── */
+  body::before {
+    content:'';
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    opacity:0.6;
+  }
+
+  /* ── Sticky top bar ── */
+  nav {
+    position: sticky; top:0; z-index: 100;
+    background: rgba(11,13,18,0.88);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 54px;
+  }
+  .nav-brand {
+    display:flex; align-items:center; gap:10px;
+    font-family:'Syne',sans-serif; font-weight:800; font-size:1.05rem; color:var(--text);
+  }
+  .nav-brand .logo-box {
+    width:30px; height:30px;
+    background: linear-gradient(135deg,var(--blue),var(--violet));
+    border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:.85rem;
+  }
+  .nav-links { display:flex; gap:1.5rem; }
+  .nav-links a {
+    font-size:.78rem; font-weight:500; color:var(--muted); text-decoration:none;
+    letter-spacing:.03em; transition:color .2s;
+  }
+  .nav-links a:hover { color:var(--text); }
+  .nav-badge {
+    background: rgba(34,217,138,.15); color: var(--green);
+    border: 1px solid rgba(34,217,138,.25);
+    font-size:.65rem; font-weight:700; padding:3px 9px; border-radius:20px;
+    letter-spacing:.06em;
+    animation: pulse-green 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse-green {
+    0%,100%{box-shadow:0 0 0 0 rgba(34,217,138,.3);}
+    50%{box-shadow:0 0 0 6px rgba(34,217,138,.0);}
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative; z-index:1;
+    padding: 6rem 2rem 4rem;
+    text-align: center;
+    max-width: 860px; margin: 0 auto;
+  }
+  .hero-eyebrow {
+    display:inline-flex; align-items:center; gap:8px;
+    background: var(--bg-card); border: 1px solid var(--border-hi);
+    border-radius:30px; padding:5px 14px;
+    font-size:.72rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:1.6rem;
+  }
+  .hero-eyebrow span { color:var(--blue); }
+  .hero h1 {
+    font-family:'Syne',sans-serif;
+    font-size: clamp(2.6rem, 6vw, 4rem);
+    font-weight:800; line-height:1.08; letter-spacing:-.02em;
+    background: linear-gradient(135deg, #fff 30%, var(--blue) 70%, var(--violet));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:1.2rem;
+  }
+  .hero-sub {
+    font-size:1.05rem; color:var(--muted); max-width:560px; margin:0 auto 2.4rem;
+    line-height:1.7;
+  }
+  .hero-cta {
+    display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;
+  }
+  .btn {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:.65rem 1.4rem; border-radius:var(--r-sm);
+    font-size:.84rem; font-weight:600; cursor:pointer; transition: all .18s;
+    text-decoration:none; border:none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg,var(--blue),var(--violet));
+    color:#fff; box-shadow:0 4px 20px rgba(79,143,255,.3);
+  }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(79,143,255,.4); }
+  .btn-outline {
+    background:transparent; color:var(--muted);
+    border:1px solid var(--border-hi);
+  }
+  .btn-outline:hover { background:var(--bg-card); color:var(--text); }
+
+  /* ── Section scaffold ── */
+  section { position:relative; z-index:1; }
+  .container { max-width:1060px; margin:0 auto; padding:0 2rem; }
+  .section-label {
+    font-size:.65rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--blue); margin-bottom:.5rem;
+  }
+  .section-title {
+    font-family:'Syne',sans-serif; font-size:1.7rem; font-weight:800;
+    color:var(--text); margin-bottom:.5rem;
+  }
+  .section-sub { font-size:.9rem; color:var(--muted); max-width:520px; }
+
+  /* ── Feature cards grid ── */
+  .features { padding:4rem 0 3rem; }
+  .features-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+    gap:1rem; margin-top:2.5rem;
+  }
+  .feat-card {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:1.5rem;
+    transition: border-color .2s, transform .2s;
+    cursor:default;
+  }
+  .feat-card:hover { border-color:var(--border-hi); transform:translateY(-3px); }
+  .feat-icon {
+    width:42px; height:42px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; margin-bottom:1rem;
+  }
+  .feat-card h3 {
+    font-family:'Syne',sans-serif; font-size:.95rem; font-weight:700;
+    color:var(--text); margin-bottom:.4rem;
+  }
+  .feat-card p { font-size:.82rem; color:var(--muted); line-height:1.6; }
+  .feat-tag {
+    display:inline-block; margin-top:.7rem;
+    background:var(--bg-raised); border:1px solid var(--border);
+    border-radius:20px; padding:2px 9px; font-size:.66rem; font-weight:600;
+    color:var(--dim); letter-spacing:.04em;
+  }
+
+  /* ── File tree ── */
+  .filetree-section { padding:3rem 0; }
+  .tree-wrap {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-lg); overflow:hidden; margin-top:2rem;
+  }
+  .tree-header {
+    background:var(--bg-raised); border-bottom:1px solid var(--border);
+    padding:.7rem 1.2rem; display:flex; align-items:center; gap:.5rem;
+  }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .tree-body { padding:1.4rem 1.6rem; font-family:'DM Mono',monospace; font-size:.82rem; }
+  .tree-node {
+    display:flex; align-items:center; gap:8px;
+    padding:4px 0; color:var(--muted); cursor:pointer;
+    transition:color .15s;
+  }
+  .tree-node:hover { color:var(--text); }
+  .tree-node .indent { color:var(--dim); user-select:none; }
+  .tree-node .fname { color:var(--text); }
+  .tree-node .fext-py  { color:var(--blue); }
+  .tree-node .fext-txt { color:var(--green); }
+  .tree-node .fext-md  { color:var(--amber); }
+  .tree-node .desc { color:var(--dim); font-size:.75rem; margin-left:auto; }
+  .tree-node .badge-new {
+    background:rgba(34,217,138,.12); color:var(--green);
+    font-size:.6rem; font-weight:700; padding:1px 6px; border-radius:10px; letter-spacing:.05em;
+  }
+  .tooltip-box {
+    display:none; position:fixed; z-index:200;
+    background:var(--bg-raised); border:1px solid var(--border-hi);
+    border-radius:var(--r-sm); padding:.55rem .85rem;
+    font-family:'DM Sans',sans-serif; font-size:.78rem; color:var(--text);
+    max-width:260px; line-height:1.5;
+    box-shadow:0 8px 28px rgba(0,0,0,.5);
+    pointer-events:none;
+  }
+
+  /* ── Install steps ── */
+  .install-section { padding:3rem 0; }
+  .steps { display:flex; flex-direction:column; gap:.7rem; margin-top:2rem; }
+  .step {
+    display:flex; align-items:flex-start; gap:1.1rem;
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:1.1rem 1.3rem;
+    transition:border-color .2s;
+  }
+  .step:hover { border-color:var(--border-hi); }
+  .step-num {
+    min-width:28px; height:28px; border-radius:50%;
+    background:linear-gradient(135deg,var(--blue),var(--violet));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Syne',sans-serif; font-size:.75rem; font-weight:700; color:#fff;
+    flex-shrink:0; margin-top:2px;
+  }
+  .step-content h4 {
+    font-family:'Syne',sans-serif; font-size:.88rem; font-weight:700;
+    color:var(--text); margin-bottom:.3rem;
+  }
+  .step-content p { font-size:.82rem; color:var(--muted); }
+  .code-block {
+    background:var(--bg-raised); border:1px solid var(--border);
+    border-radius:var(--r-sm); padding:.55rem .9rem;
+    font-family:'DM Mono',monospace; font-size:.78rem; color:var(--cyan);
+    margin-top:.5rem; display:flex; align-items:center; justify-content:space-between;
+    gap:1rem;
+  }
+  .copy-btn {
+    background:transparent; border:1px solid var(--border);
+    border-radius:5px; padding:2px 8px; font-size:.65rem; font-weight:600;
+    color:var(--dim); cursor:pointer; transition:all .15s; white-space:nowrap;
+    font-family:'DM Sans',sans-serif;
+  }
+  .copy-btn:hover { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .copy-btn.copied { background:var(--green); border-color:var(--green); color:#fff; }
+
+  /* ── Pages accordion ── */
+  .pages-section { padding:3rem 0; }
+  .accordion { margin-top:2rem; display:flex; flex-direction:column; gap:.5rem; }
+  .acc-item {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-md); overflow:hidden; transition:border-color .2s;
+  }
+  .acc-item.open { border-color:var(--border-hi); }
+  .acc-head {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:1rem 1.3rem; cursor:pointer; user-select:none;
+    transition:background .15s;
+  }
+  .acc-head:hover { background:rgba(255,255,255,.025); }
+  .acc-head-left { display:flex; align-items:center; gap:.85rem; }
+  .acc-icon {
+    width:34px; height:34px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; font-size:.95rem;
+    flex-shrink:0;
+  }
+  .acc-title {
+    font-family:'Syne',sans-serif; font-size:.9rem; font-weight:700; color:var(--text);
+  }
+  .acc-sub { font-size:.75rem; color:var(--muted); margin-top:1px; }
+  .acc-arrow {
+    font-size:.7rem; color:var(--dim); transition:transform .25s;
+  }
+  .acc-item.open .acc-arrow { transform:rotate(180deg); }
+  .acc-body {
+    max-height:0; overflow:hidden; transition:max-height .35s ease;
+  }
+  .acc-item.open .acc-body { max-height:600px; }
+  .acc-inner {
+    padding:.2rem 1.3rem 1.2rem 4.2rem;
+    font-size:.83rem; color:var(--muted); line-height:1.7;
+    border-top:1px solid var(--border);
+  }
+  .acc-inner ul { padding-left:1.1rem; margin:.4rem 0; }
+  .acc-inner li { margin-bottom:.25rem; }
+  .acc-inner strong { color:var(--text); }
+  .pill {
+    display:inline-block; padding:2px 9px; border-radius:20px;
+    font-size:.68rem; font-weight:600; margin:2px 1px;
+  }
+  .pill-blue{background:rgba(79,143,255,.12);color:var(--blue);}
+  .pill-green{background:rgba(34,217,138,.1);color:var(--green);}
+  .pill-violet{background:rgba(124,111,247,.12);color:var(--violet);}
+  .pill-amber{background:rgba(245,166,35,.1);color:var(--amber);}
+  .pill-red{background:rgba(240,82,82,.1);color:var(--red);}
+
+  /* ── Tech stack ── */
+  .stack-section { padding:3rem 0; }
+  .stack-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:.8rem; margin-top:2rem;
+  }
+  .stack-card {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:1rem 1.1rem;
+    display:flex; align-items:center; gap:.8rem;
+    transition:border-color .2s, transform .15s;
+  }
+  .stack-card:hover { border-color:var(--border-hi); transform:translateY(-2px); }
+  .stack-logo {
+    width:36px; height:36px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0;
+  }
+  .stack-info h4 { font-size:.83rem; font-weight:600; color:var(--text); }
+  .stack-info p  { font-size:.7rem; color:var(--dim); margin-top:1px; }
+
+  /* ── Notes / disclaimer ── */
+  .notes-section { padding:3rem 0 2rem; }
+  .note-box {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:1.4rem 1.6rem;
+    display:flex; gap:1rem; align-items:flex-start;
+  }
+  .note-icon { font-size:1.2rem; flex-shrink:0; margin-top:1px; }
+  .note-body h4 { font-family:'Syne',sans-serif; font-size:.88rem; font-weight:700; color:var(--text); margin-bottom:.3rem; }
+  .note-body p  { font-size:.82rem; color:var(--muted); line-height:1.65; }
+
+  /* ── Footer ── */
+  footer {
+    position:relative; z-index:1;
+    border-top:1px solid var(--border);
+    padding:1.8rem 2rem;
+    text-align:center;
+    font-size:.74rem; color:var(--dim);
+  }
+  footer a { color:var(--muted); text-decoration:none; transition:color .15s; }
+  footer a:hover { color:var(--text); }
+
+  /* ── Scroll reveal ── */
+  .reveal { opacity:0; transform:translateY(22px); transition:opacity .55s ease, transform .55s ease; }
+  .reveal.visible { opacity:1; transform:none; }
+
+  /* ── Separator ── */
+  .sep {
+    height:1px; background:linear-gradient(90deg,transparent,var(--border),transparent);
+    margin:0 2rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- Tooltip -->
+<div class="tooltip-box" id="tooltip"></div>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-brand">
+    <div class="logo-box">📈</div>
+    StockFin
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#structure">Structure</a>
+    <a href="#install">Install</a>
+    <a href="#pages">Pages</a>
+    <a href="#stack">Stack</a>
+  </div>
+  <span class="nav-badge">LIVE DASHBOARD</span>
+</nav>
+
+<!-- Hero -->
+<div class="hero reveal">
+  <div class="hero-eyebrow">📈 <span>StockFin</span> &nbsp;·&nbsp; Live Market Dashboard</div>
+  <h1>Your Premium<br>Stock Intelligence Hub</h1>
+  <p class="hero-sub">
+    A dark-themed, multi-page Streamlit dashboard with live data, ML predictions,
+    a watchlist, backtesting engine, and portfolio analytics — all in one place.
+  </p>
+  <div class="hero-cta">
+    <a href="#install" class="btn btn-primary">🚀 Quick Start</a>
+    <a href="#pages" class="btn btn-outline">📄 Explore Pages</a>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="container reveal">
+    <div class="section-label">What's inside</div>
+    <div class="section-title">Everything you need</div>
+    <p class="section-sub">Six interconnected pages covering real-time data, ML, alerts, and strategy backtesting.</p>
+    <div class="features-grid">
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(79,143,255,.12)">⬛</div>
+        <h3>Live Dashboard</h3>
+        <p>Real-time ticker grid with candlestick charts, Bollinger Bands, MACD, and RSI for any symbol.</p>
+        <span class="feat-tag">app.py</span>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(34,217,138,.10)">📊</div>
+        <h3>Analytics</h3>
+        <p>Correlation heatmaps, rolling beta, return distributions, and volatility surface analysis.</p>
+        <span class="feat-tag">1_Analytics.py</span>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(124,111,247,.12)">💼</div>
+        <h3>Portfolio</h3>
+        <p>Track holdings, P&amp;L, allocation pie, risk metrics and daily portfolio valuation.</p>
+        <span class="feat-tag">2_Portfolio.py</span>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(56,217,245,.10)">🤖</div>
+        <h3>ML Predictions</h3>
+        <p>XGBoost &amp; Random Forest price forecasting with feature importance and backtest accuracy.</p>
+        <span class="feat-tag">4_ML_Predictions.py</span>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(245,166,35,.10)">🔔</div>
+        <h3>Watchlist &amp; Alerts</h3>
+        <p>Monitor symbols with sparklines and create Price / RSI / Change% alerts that trigger live.</p>
+        <span class="feat-tag">5_Watchlist.py</span>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(240,82,82,.10)">⚙️</div>
+        <h3>Backtesting Engine</h3>
+        <p>Simulate SMA crossover, RSI reversion, MACD and momentum strategies with full analytics.</p>
+        <span class="feat-tag">6_Backtesting.py</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- File Structure -->
+<section class="filetree-section" id="structure">
+  <div class="container reveal">
+    <div class="section-label">Project layout</div>
+    <div class="section-title">File Structure</div>
+    <p class="section-sub">Hover any file to see what it does.</p>
+    <div class="tree-wrap">
+      <div class="tree-header">
+        <div class="dot" style="background:#f05252"></div>
+        <div class="dot" style="background:#f5a623"></div>
+        <div class="dot" style="background:#22d98a"></div>
+        <span style="font-size:.72rem;color:#4a5568;margin-left:.4rem;font-family:'DM Mono',monospace">stockfin/</span>
+      </div>
+      <div class="tree-body" id="tree">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Install -->
+<section class="install-section" id="install">
+  <div class="container reveal">
+    <div class="section-label">Getting started</div>
+    <div class="section-title">Installation</div>
+    <p class="section-sub">Up and running in under 2 minutes.</p>
+    <div class="steps" id="steps-list"></div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Pages -->
+<section class="pages-section" id="pages">
+  <div class="container reveal">
+    <div class="section-label">Navigation</div>
+    <div class="section-title">Pages Reference</div>
+    <p class="section-sub">Click any page to expand its full feature list.</p>
+    <div class="accordion" id="accordion"></div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Stack -->
+<section class="stack-section" id="stack">
+  <div class="container reveal">
+    <div class="section-label">Dependencies</div>
+    <div class="section-title">Tech Stack</div>
+    <p class="section-sub">All open-source. Install everything with one command.</p>
+    <div class="stack-grid" id="stack-grid"></div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Notes -->
+<section class="notes-section">
+  <div class="container reveal">
+    <div style="display:flex;flex-direction:column;gap:.8rem">
+      <div class="note-box">
+        <div class="note-icon">⚠️</div>
+        <div class="note-body">
+          <h4>Disclaimer</h4>
+          <p>StockFin is for <strong>educational and informational purposes only</strong>. Nothing here constitutes financial advice. All data is sourced from Yahoo Finance and may be delayed. Past backtesting results do not guarantee future returns. Always consult a qualified financial advisor before making investment decisions.</p>
+        </div>
+      </div>
+      <div class="note-box">
+        <div class="note-icon">🌐</div>
+        <div class="note-body">
+          <h4>Data Source &amp; Rate Limits</h4>
+          <p>Live prices are fetched via <code style="font-family:'DM Mono',monospace;color:var(--cyan);font-size:.8rem">yfinance</code> which wraps Yahoo Finance's unofficial API. A 0.35 s throttle is applied between requests to avoid rate limits. Cached data refreshes every 60 seconds for quotes and 5 minutes for ML training sets.</p>
+        </div>
+      </div>
+      <div class="note-box">
+        <div class="note-icon">💡</div>
+        <div class="note-body">
+          <h4>Tips for Best Results</h4>
+          <p>Use <strong>.NS</strong> suffix for NSE-India stocks (e.g. <code style="font-family:'DM Mono',monospace;color:var(--cyan);font-size:.8rem">RELIANCE.NS</code>), <strong>-USD</strong> for crypto (e.g. <code style="font-family:'DM Mono',monospace;color:var(--cyan);font-size:.8rem">BTC-USD</code>). For ML predictions, select at least <strong>2y</strong> of training data for meaningful accuracy. Backtesting works best with periods of <strong>2y+</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  StockFin &nbsp;·&nbsp; Built with
+  <a href="https://streamlit.io" target="_blank">Streamlit</a> &amp;
+  <a href="https://plotly.com" target="_blank">Plotly</a>
+  &nbsp;·&nbsp; Data by
+  <a href="https://finance.yahoo.com" target="_blank">Yahoo Finance</a>
+  &nbsp;·&nbsp; For educational purposes only
+</footer>
+
+<script>
+// ── File tree data ──────────────────────────────────────────────────────────
+const treeData = [
+  { indent:0, icon:"📁", name:"stockfin",   ext:"",    desc:"root",        tip:"Project root directory" },
+  { indent:1, icon:"🐍", name:"app",        ext:".py",  desc:"entry point", tip:"Main dashboard — ticker grid, candlestick chart with Price/Volume/RSI subplots, portfolio strip.", tag:null },
+  { indent:1, icon:"📄", name:"requirements",ext:".txt", desc:"deps",        tip:"All pip dependencies. Run: pip install -r requirements.txt" },
+  { indent:1, icon:"📄", name:"README",     ext:".html", desc:"this file",   tip:"Interactive documentation — you're reading it now!" },
+  { indent:1, icon:"📁", name:"pages/",     ext:"",    desc:"sub-pages",    tip:"Streamlit multi-page directory — each file becomes a sidebar page." },
+  { indent:2, icon:"🐍", name:"1_Analytics",ext:".py", desc:"analytics",    tip:"Correlation heatmap, rolling beta, return distributions, volatility analysis.", tag:null },
+  { indent:2, icon:"🐍", name:"2_Portfolio",ext:".py", desc:"portfolio",    tip:"Holdings tracker, allocation pie, P&L over time, risk metrics.", tag:null },
+  { indent:2, icon:"🐍", name:"4_ML_Predictions",ext:".py", desc:"ML forecast", tip:"XGBoost + Random Forest + Ridge — feature engineering, forecast chart, model comparison.", tag:"NEW" },
+  { indent:2, icon:"🐍", name:"5_Watchlist",ext:".py", desc:"alerts",       tip:"Live watchlist with sparklines, Price/RSI/Change% alert engine.", tag:"NEW" },
+  { indent:2, icon:"🐍", name:"6_Backtesting",ext:".py",desc:"backtest",    tip:"5 strategies, equity curve, drawdown chart, trade log, P&L histogram.", tag:"NEW" },
+  { indent:1, icon:"📁", name:"utils/",     ext:"",    desc:"helpers",      tip:"Shared utility package used across pages." },
+  { indent:2, icon:"🐍", name:"__init__",   ext:".py", desc:"package init", tip:"Exports StockDataFetcher, PortfolioManager, TechnicalIndicators, DashboardStyling." },
+  { indent:2, icon:"🐍", name:"stock_data", ext:".py", desc:"data layer",   tip:"StockDataFetcher wraps yfinance. PortfolioManager handles holdings state." },
+  { indent:2, icon:"🐍", name:"indicators", ext:".py", desc:"TA library",   tip:"TechnicalIndicators: MA, RSI, MACD, Bollinger Bands, ATR, OBV." },
+  { indent:2, icon:"🐍", name:"styling",    ext:".py", desc:"CSS/themes",   tip:"DashboardStyling, ColorPalette, init_styling — shared CSS injected across pages." },
+];
+
+const tree = document.getElementById("tree");
+const tooltip = document.getElementById("tooltip");
+const extColor = { ".py":"fext-py", ".txt":"fext-txt", ".html":"fext-md" };
+
+treeData.forEach(node => {
+  const row = document.createElement("div");
+  row.className = "tree-node";
+  const indentStr = Array(node.indent).fill("│   ").join("") + (node.indent ? "├── " : "");
+  const extClass = extColor[node.ext] || "";
+  row.innerHTML = `
+    <span class="indent">${indentStr}</span>
+    <span>${node.icon}</span>
+    <span class="fname ${extClass}">${node.name}${node.ext}</span>
+    ${node.tag ? `<span class="badge-new">${node.tag}</span>` : ""}
+    <span class="desc">${node.desc}</span>
+  `;
+  row.addEventListener("mouseenter", e => {
+    tooltip.textContent = node.tip;
+    tooltip.style.display = "block";
+    posTooltip(e);
+  });
+  row.addEventListener("mousemove", posTooltip);
+  row.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+  tree.appendChild(row);
+});
+
+function posTooltip(e) {
+  tooltip.style.left = (e.clientX + 16) + "px";
+  tooltip.style.top  = (e.clientY - 12) + "px";
+}
+
+// ── Install steps ────────────────────────────────────────────────────────────
+const steps = [
+  { title:"Clone or download the project",
+    body:"Place <code>app.py</code>, <code>requirements.txt</code>, and the <code>pages/</code> &amp; <code>utils/</code> folders in the same directory.",
+    cmd: null },
+  { title:"Create a virtual environment (recommended)",
+    body:"Keeps your global Python install clean.",
+    cmd:"python -m venv .venv && source .venv/bin/activate" },
+  { title:"Install all dependencies",
+    body:"This installs Streamlit, yfinance, Plotly, scikit-learn, XGBoost and everything else.",
+    cmd:"pip install -r requirements.txt" },
+  { title:"Launch the dashboard",
+    body:"Streamlit will open your browser automatically at <strong>http://localhost:8501</strong>.",
+    cmd:"streamlit run app.py" },
+  { title:"Select your stocks &amp; explore",
+    body:"Check stocks in the sidebar, add custom symbols (e.g. <code>RELIANCE.NS</code>, <code>ETH-USD</code>), and navigate to any page." ,
+    cmd: null },
+];
+
+const stepsList = document.getElementById("steps-list");
+steps.forEach((s, i) => {
+  const el = document.createElement("div");
+  el.className = "step";
+  el.innerHTML = `
+    <div class="step-num">${i+1}</div>
+    <div class="step-content">
+      <h4>${s.title}</h4>
+      <p>${s.body}</p>
+      ${s.cmd ? `<div class="code-block"><code>${s.cmd}</code><button class="copy-btn" onclick="copyCmd(this,'${s.cmd}')">Copy</button></div>` : ""}
+    </div>
+  `;
+  stepsList.appendChild(el);
+});
+
+function copyCmd(btn, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+  });
+}
+
+// ── Accordion ────────────────────────────────────────────────────────────────
+const pages = [
+  { icon:"⬛", bg:"rgba(79,143,255,.12)", title:"Dashboard", file:"app.py",
+    sub:"Entry point — live ticker grid &amp; technical analysis",
+    body:`<ul>
+      <li><strong>Ticker grid</strong> — up to 8 symbols in a responsive card layout with live price &amp; change%</li>
+      <li><strong>Candlestick chart</strong> with MA20, MA50, Bollinger Bands overlay</li>
+      <li><strong>Volume</strong> bar chart (green/red coloured by candle direction)</li>
+      <li><strong>RSI (14)</strong> with overbought/oversold reference lines — now with <span class='pill pill-blue'>more spacing</span></li>
+      <li><strong>Indicators tab</strong> — Key stats &amp; technical indicator table</li>
+      <li><strong>Company Info tab</strong> — Profile, financials, 52W range</li>
+      <li><strong>Alerts tab</strong> — Signal alerts + simulated headlines</li>
+      <li><strong>Portfolio summary strip</strong> — total value, return, holdings, risk score</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-blue">yfinance</span><span class="pill pill-violet">Plotly</span><span class="pill pill-green">Live data</span></div>` },
+
+  { icon:"📊", bg:"rgba(34,217,138,.10)", title:"Analytics", file:"pages/1_Analytics.py",
+    sub:"Deep-dive statistical analysis",
+    body:`<ul>
+      <li>Rolling correlation matrix across selected symbols</li>
+      <li>Beta analysis vs benchmark (SPY)</li>
+      <li>Return distribution histograms with normal overlay</li>
+      <li>Volatility surface and risk/return scatter</li>
+      <li>Efficient frontier visualisation</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-blue">scikit-learn</span><span class="pill pill-violet">Plotly</span></div>` },
+
+  { icon:"💼", bg:"rgba(124,111,247,.12)", title:"Portfolio", file:"pages/2_Portfolio.py",
+    sub:"Holdings tracker &amp; P&amp;L dashboard",
+    body:`<ul>
+      <li>Add/remove holdings with quantity &amp; purchase price</li>
+      <li>Live unrealised P&amp;L per position</li>
+      <li>Allocation pie chart</li>
+      <li>Portfolio value over time chart</li>
+      <li>Sharpe ratio, max drawdown, beta summary cards</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-green">Session state</span><span class="pill pill-violet">Plotly</span></div>` },
+
+  { icon:"🤖", bg:"rgba(56,217,245,.10)", title:"ML Predictions", file:"pages/4_ML_Predictions.py", isNew:true,
+    sub:"XGBoost &amp; Random Forest price forecasting",
+    body:`<ul>
+      <li><strong>Feature engineering</strong> — 20+ features: returns, log-returns, MA5/10/20/50, momentum, ROC, RSI, MACD, OBV, volume ratio</li>
+      <li><strong>Models</strong> — XGBoost, Random Forest (200 trees), Ridge regression, or full Ensemble</li>
+      <li><strong>Forecast chart</strong> — per-model dotted lines, ensemble line, ±5% confidence band</li>
+      <li><strong>Test-set backtest</strong> — actual vs predicted chart, direction accuracy</li>
+      <li><strong>Model comparison table</strong> — MAE, MAPE, R², direction accuracy</li>
+      <li><strong>Feature importance</strong> bar chart for tree-based models</li>
+      <li>Configurable forecast horizon: 5–30 days</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-blue">XGBoost</span><span class="pill pill-green">scikit-learn</span><span class="pill pill-amber">New page</span></div>` },
+
+  { icon:"🔔", bg:"rgba(245,166,35,.10)", title:"Watchlist &amp; Alerts", file:"pages/5_Watchlist.py", isNew:true,
+    sub:"Live symbol monitor with configurable alerts",
+    body:`<ul>
+      <li><strong>Watchlist tab</strong> — live price, change%, sparkline, volume, market cap, RSI badge per symbol</li>
+      <li><strong>Add/remove symbols</strong> — including international (e.g. RELIANCE.NS) and crypto (BTC-USD)</li>
+      <li><strong>Alert types</strong> — Price ≥, Price ≤, Change% ≥, Change% ≤, RSI ≥, RSI ≤</li>
+      <li><strong>Alert checking</strong> — live conditions checked on refresh, triggered alerts highlighted in red</li>
+      <li>Optional note per alert (e.g. "support level")</li>
+      <li>Summary strip: watching count, advancing vs declining</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-amber">Session alerts</span><span class="pill pill-green">Live prices</span><span class="pill pill-amber">New page</span></div>` },
+
+  { icon:"⚙️", bg:"rgba(240,82,82,.10)", title:"Backtesting Engine", file:"pages/6_Backtesting.py", isNew:true,
+    sub:"Historical strategy simulation with full analytics",
+    body:`<ul>
+      <li><strong>5 strategies</strong> — SMA Crossover (20/50), RSI Mean Reversion, Bollinger Band Breakout, MACD Signal, Momentum (ROC)</li>
+      <li><strong>Equity curve</strong> vs Buy &amp; Hold with drawdown subplot</li>
+      <li><strong>KPIs</strong> — total return, Sharpe ratio, max drawdown, win rate, profit factor, final equity</li>
+      <li><strong>Signal overlay</strong> — buy/sell triangles on price chart with MA lines</li>
+      <li><strong>Trade log</strong> — date, type, price, shares, value, P&amp;L per trade</li>
+      <li><strong>P&amp;L histogram</strong> — distribution of trade outcomes</li>
+      <li>Commission per trade is configurable (default $1)</li>
+    </ul>
+    <div style="margin-top:.6rem"><span class="pill pill-red">Backtest</span><span class="pill pill-blue">NumPy</span><span class="pill pill-amber">New page</span></div>` },
+];
+
+const accordion = document.getElementById("accordion");
+pages.forEach((p, i) => {
+  const item = document.createElement("div");
+  item.className = "acc-item";
+  item.innerHTML = `
+    <div class="acc-head" onclick="toggleAcc(this)">
+      <div class="acc-head-left">
+        <div class="acc-icon" style="background:${p.bg}">${p.icon}</div>
+        <div>
+          <div class="acc-title">${p.title} ${p.isNew ? '<span class="pill pill-green" style="font-size:.6rem">NEW</span>' : ""}</div>
+          <div class="acc-sub">${p.sub} &nbsp;·&nbsp; <span style="font-family:'DM Mono',monospace;font-size:.72rem;color:#4a5568">${p.file}</span></div>
+        </div>
+      </div>
+      <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body"><div class="acc-inner">${p.body}</div></div>
+  `;
+  accordion.appendChild(item);
+});
+
+function toggleAcc(head) {
+  const item = head.parentElement;
+  item.classList.toggle("open");
+}
+
+// ── Stack grid ───────────────────────────────────────────────────────────────
+const stack = [
+  { icon:"🌊", bg:"rgba(255,75,75,.12)", name:"Streamlit", ver:"≥ 1.32", desc:"Multi-page UI framework" },
+  { icon:"📈", bg:"rgba(79,143,255,.12)", name:"Plotly",    ver:"≥ 5.18", desc:"Interactive charts" },
+  { icon:"🐼", bg:"rgba(245,166,35,.12)", name:"Pandas",    ver:"≥ 2.1",  desc:"DataFrames & timeseries" },
+  { icon:"🔢", bg:"rgba(34,217,138,.10)", name:"NumPy",     ver:"≥ 1.26", desc:"Numerical computing" },
+  { icon:"💹", bg:"rgba(124,111,247,.12)", name:"yfinance",  ver:"≥ 0.2.40", desc:"Yahoo Finance data" },
+  { icon:"🤖", bg:"rgba(56,217,245,.10)", name:"XGBoost",   ver:"≥ 2.0",  desc:"Gradient boosting ML" },
+  { icon:"🧠", bg:"rgba(240,82,82,.10)",  name:"scikit-learn",ver:"≥ 1.3", desc:"ML algorithms & metrics" },
+  { icon:"🗄️", bg:"rgba(79,143,255,.08)", name:"SQLAlchemy", ver:"≥ 2.0",  desc:"Database ORM layer" },
+];
+
+const stackGrid = document.getElementById("stack-grid");
+stack.forEach(s => {
+  const el = document.createElement("div");
+  el.className = "stack-card";
+  el.innerHTML = `
+    <div class="stack-logo" style="background:${s.bg}">${s.icon}</div>
+    <div class="stack-info">
+      <h4>${s.name} <span style="font-size:.68rem;color:var(--dim)">${s.ver}</span></h4>
+      <p>${s.desc}</p>
+    </div>
+  `;
+  stackGrid.appendChild(el);
+});
+
+// ── Scroll reveal ────────────────────────────────────────────────────────────
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("visible"); });
+}, { threshold: 0.08 });
+document.querySelectorAll(".reveal").forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
